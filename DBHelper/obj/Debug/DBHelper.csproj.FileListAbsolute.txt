@@ -1,0 +1,18 @@
+D:\Developing Applications\eTimesheet\DBHelper\bin\Debug\DBHelper.dll
+D:\Developing Applications\eTimesheet\DBHelper\bin\Debug\DBHelper.pdb
+D:\Developing Applications\eTimesheet\eTimesheet\bin\DBHelper.dll
+D:\Developing Applications\eTimesheet\eTimesheet\bin\DBHelper.pdb
+D:\Developing Applications\eTimesheet\DBHelper\obj\Debug\DBHelper.dll
+D:\Developing Applications\eTimesheet\DBHelper\obj\Debug\DBHelper.pdb
+D:\AdminLTE\eTimesheet\bin\DBHelper.dll
+D:\AdminLTE\eTimesheet\bin\DBHelper.pdb
+D:\AdminLTE\AdminLTE\bin\DBHelper.dll
+D:\AdminLTE\AdminLTE\bin\DBHelper.pdb
+D:\AdminLTE\DBHelper\obj\Debug\DBHelper.dll
+D:\AdminLTE\DBHelper\obj\Debug\DBHelper.pdb
+D:\Developing Applications\DynamicPage\AdminLTE\bin\DBHelper.dll
+D:\Developing Applications\DynamicPage\AdminLTE\bin\DBHelper.pdb
+D:\Developing Applications\DynamicPage\DBHelper\obj\Debug\DBHelper.dll
+D:\Developing Applications\DynamicPage\DBHelper\obj\Debug\DBHelper.pdb
+D:\Developing Applications\DynamicPage\WebDynamicPage\bin\DBHelper.dll
+D:\Developing Applications\DynamicPage\WebDynamicPage\bin\DBHelper.pdb

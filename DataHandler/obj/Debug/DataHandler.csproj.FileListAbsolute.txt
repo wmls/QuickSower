@@ -1,0 +1,9 @@
+D:\Developing Applications\DynamicPage\DataHandler\obj\Debug\DataHandler.csprojResolveAssemblyReference.cache
+D:\Developing Applications\DynamicPage\DataHandler\bin\Debug\DataHandler.dll
+D:\Developing Applications\DynamicPage\DataHandler\bin\Debug\DataHandler.pdb
+D:\Developing Applications\DynamicPage\DataHandler\bin\Debug\DBHelper.dll
+D:\Developing Applications\DynamicPage\DataHandler\bin\Debug\Newtonsoft.Json.dll
+D:\Developing Applications\DynamicPage\DataHandler\bin\Debug\DBHelper.pdb
+D:\Developing Applications\DynamicPage\DataHandler\bin\Debug\Newtonsoft.Json.xml
+D:\Developing Applications\DynamicPage\DataHandler\obj\Debug\DataHandler.dll
+D:\Developing Applications\DynamicPage\DataHandler\obj\Debug\DataHandler.pdb
