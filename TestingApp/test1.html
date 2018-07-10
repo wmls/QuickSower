@@ -1,0 +1,610 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="CSS/page.css" />
+    <link rel="stylesheet" type="text/css" href="jquery-easyui-1.5.3/themes/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="jquery-easyui-1.5.3/themes/color.css"/>
+    <link rel="stylesheet" type="text/css" href="jquery-easyui-1.5.3/themes/icon.css"/>
+    <script src="jquery-easyui-1.5.3/jquery.min.js" type="text/javascript"></script>
+    <script src="jquery-easyui-1.5.3/jquery.easyui.min.js" type="text/javascript"></script>
+
+    <script type="text/javascript">
+        //var container = $('.pagesection');
+        function createpage() {
+            $.ajax({
+                type: "POST",
+                url: 'Handler/WebHandler.ashx',
+                data: {
+                    PageName:'test1'
+                },
+                //async: false,
+                //dataType: 'text',
+                //contentType: 'application/json; charset=utf-8',
+                error: function (err) {
+                    alert(err.statusText);
+                },
+                success: function (data) {
+
+                    var container = $('.pagesection');
+                    //container.attr('href', surl);
+                    //var content = $("<div style='width:auto;height:auto;'>" + data + "</div>");
+                    var ohtml = $.parseHTML(data);
+                    container.html('').append(ohtml);
+                    $.parser.parse(container);
+                    //SearchSuggest();
+                    //allCheck('table tbody tr input', 'table thead tr input');
+                    setTimeout(function () { }, 1 * 1000);//延迟1000毫秒
+                }
+            });
+        }
+
+        function selectrow(tblcls, index, row) {
+            var currow = $('.' + tblcls).attr('currow');
+            if (currow != undefined) {
+                saverow(tblcls, currow.rowIndex);
+            }
+            editrow(tblcls, index);
+        }
+
+        function getRowIndex(target){
+            		//var tr = $(target).closest('tr.datagrid-row');
+            //return parseInt(tr.attr('datagrid-row-index'));
+            var crow = $('.' + tblcls).datagrid('getSelected');
+            return crow.rowIndex;
+            	}
+        function editrow(tblcls, index) {
+            $('.' + tblcls).datagrid('beginEdit', index);
+            $('.' + tblcls).attr('currow', index);
+        }
+        function deleterow(tblcls, index) {
+            		$.messager.confirm('Confirm','Are you sure?',function(r){
+                			if (r){
+                			    $('.' + tblcls).datagrid('deleteRow', index);
+                    			}
+                		});
+            	}
+        function saverow(tblcls, index) {
+            $('.' + tblcls).datagrid('endEdit', index);
+            	}
+        function cancelrow(tblcls, index) {
+            $('.' + tblcls).datagrid('cancelEdit', index);
+        }
+        function JsonfldtoControl(Jsondata) {
+            
+            //Jsondata是一个以指定table为对象的单行多列对象：
+            //{field1:v1, field2:v2,.....}
+
+            //所有的被赋值的控件，必须有table或view属性和field属性
+
+            //页面数据元素属性：table布局对象：tablename、fieldlayout、parenttable【可选】；字段元素对象：field、primarykey【可选】
+            $("table[tablename]").each(function () {
+                var fldlayout = $(this).attr('fieldlayout');
+                //获取本表的父级表主键关联表
+                var parenttbl = $(this).attr('parenttable');
+                //获取主键值
+                var primaryFields = {};
+                if (parenttbl != undefined) {
+                    var ptbl = $('table[tablename="' + parenttbl + '"]');
+                    var parentlayout = ptbl.attr('fieldlayout');
+                    //确定父级关联外键字段数据元素的所在容器
+                    var pkcontainer = null, pk = {};
+                    if (parentlayout.toLowerCase() == "grid") {
+                        //父级数据在表格行tablerow，column：fieldtype='primarykey'
+                        pkcontainer = ptbl.datagrid('getSelected');
+                        for (var column in pkcontainer) {
+                            if (column.primarykey != undefined) pk[column.field] = pkcontainer[column.field];
+                        }
+                    } else {
+                        //父级数据在页面input-hidden, fieldtype='primarykey'
+                        pkcontainer = ptbl;
+                        $("[field][fieldtype='primarykey']", pkcontainer).each(function () {
+                            pk[$(this).attr('field')] = controlVal(this);
+                        });
+                    }
+                    primaryFields = pk;
+                }
+                //获取本表数据集合
+                var tbldata = null;
+                if (fldlayout.toLowerCase() == "grid") {
+                    tbldata = esuDatatoQinData($(this).datagrid('getData'));
+                } else {
+                    pkcontainer = ptbl;
+                    var tbldata = {};
+                    $("[field]", pkcontainer).each(function () {
+                        var fld = $(this).attr('field');
+                        tbldata[fld] = controlVal(this);
+                    });
+
+                    var qdata = {
+                        fields: [],
+                        total: 0,
+                        rows: []
+                    };
+
+                    var fields = data.fields.split(',');
+                    var rows = [];
+                    for (var i = 0; i < data.rows.length ; i++) {
+                        var row = data.rows[i];
+                        var drow = {}; var c = 0;
+                        for (var f in fieldColumns) {
+                            drow[fields[i]] = row[c];
+                            c++;
+                        }
+                        rows.push(drow);
+                    }
+                    return { total: data.rows.length, rows: rows };
+                }
+
+
+                var o = $(this);
+                var fldname = o.attr('field');
+                o.val(Jsondata[fldname]);  //适用于有value属性的对象
+                
+            });
+        }
+        //支持easyui控件和普通html控件
+        function controlVal(selector, v) {
+            var origv = v;
+            var o = $(selector);
+            var at = o.attr('class');
+            var command = (v == undefined ? 'getValue' : 'setValue');
+            try{
+                if (at != undefined && at.indexOf('easyui-') > -1) {
+                    var pat = /(\s*easyui-)(\S+)(\s*)/g;
+                    var reg = new RegExp(pat);
+                    var ctltype = reg.exec(at, "$2")[2];
+                    var options;
+                    switch (ctltype.toLowerCase()) {
+                        case "textbox":
+                            options = o.textbox('options');
+                            if (v != undefined && v != null) {
+                                o.textbox(command, v);
+                            } else {
+                                v = o.textbox(command);
+                            } break;
+                        case "combo":
+                            options = o.combo('options');
+                            if (v != undefined && v != null) {
+                                o.combo(command, v);
+                            } else {
+                                v = o.combo(command);
+                            } break;
+                        case "combobox":
+                            options = o.combobox('options');
+                            if (v != undefined && v != null) {
+                                o.combobox(command, v);
+                            } else {
+                                v = o.combobox(command);
+                            } break;
+                        case "combotree":
+                            options = o.combotree('options');
+                            if (v != undefined && v != null) {
+                                o.combotree(command, v);
+                            } else {
+                                v = o.combotree(command);
+                            } break;
+                        case "combogrid":
+                            options = o.combogrid('options');
+                            if (v != undefined && v != null) {
+                                o.combogrid(command, v);
+                            } else {
+                                v = o.combogrid(command);
+                            } break;
+                        case "combotreegrid":
+                            options = o.combotreegrid('options');
+                            if (v != undefined && v != null) {
+                                o.combotreegrid(command, v);
+                            } else {
+                                v = o.combotreegrid(command);
+                            } break;
+                        case "numberbox":
+                            options = o.numberbox('options');
+                            v = v.replace(/,/g, '');
+                            if (v != undefined && v != null) {
+                                o.numberbox(command, v);
+                            } else {
+                                v = o.numberbox(command);
+                            } break;
+                        case "datebox":
+                            options = o.datebox('options');
+                            if (v != undefined && v != null) {
+                                o.datebox(command, v);
+                            } else {
+                                v = o.datebox(command);
+                            } break;
+                        case "datetimebox":
+                            options = o.datetimebox('options');
+                            if (v != undefined && v != null) {
+                                o.datetimebox(command, v);
+                            } else {
+                                v = o.datetimebox(command);
+                            } break;
+                        case "validatebox":
+                            options = o.validatebox('options');
+                            if (v != undefined && v != null) {
+                                o.validatebox(command, v);
+                            } else {
+                                v = o.validatebox(command);
+                            }
+                            break;
+                        case "numberspinner":
+                            options = o.numberspinner('options');
+                            if (v != undefined && v != null) {
+                                o.numberspinner(command, v);
+                            } else {
+                                v = o.numberspinner(command);
+                            }
+                            break;
+                        case "timespinner":
+                            options = o.timespinner('options');
+                            if (v != undefined && v != null) {
+                                o.timespinner(command, v);
+                            } else {
+                                v = o.timespinner(command);
+                            }
+                            break;
+                        case "slider":
+                            options = o.slider('options');
+                            if (v != undefined && v != null) {
+                                o.slider(command, v);
+                            } else {
+                                v = o.slider(command);
+                            }
+                            break;
+                        default:
+                            if (v != undefined && v != null) {
+                                o.val(v);
+                            } else {
+                                v = o.val();
+                            }
+                            break;
+                    }
+                } else {
+                    var tag = o[0].tagName;
+                    switch (tag.toLowerCase()) {
+                        case "input":
+                            switch (o.attr('type').toLowerCase()) {
+                                case "checkbox":
+                                    if (v == undefined) {
+                                        v = o.attr("checked") ? true : false;
+                                    } else {
+                                        o.attr("checked", (v == 1 || v == '1' || v == true ? true : false));
+                                    }
+                                    break;
+                                case "radio":
+                                    if (v == undefined) {
+                                        var name = o.attr('name');
+                                        v = o.parent().find("input[name='" + name + "'][checked]").val();
+                                    } else {
+                                        var name = o.attr('name');
+                                        o.parent().find("input[name='" + name + "'][value='" + v + "']").attr("checked", true);
+                                    }
+                                default:
+                                    if (v == undefined) {
+                                        v = o.val();
+                                    } else {
+                                        o.val(v);
+                                    }
+                                    break;
+                            }
+                            break;
+                        case "textarea":
+                            if (v == undefined) {
+                                v = o.html();
+                            } else {
+                                o.html(v);
+                            }
+                        default:
+                            if (v == undefined) {
+                                v = o.text();
+                            } else {
+                                o.text(v);
+                            }
+                            break;
+                    }
+                }
+                return (origv == undefined ? v : true);
+            }
+            catch(e){
+                return (origv == undefined ? "" : false);
+            }
+        }
+
+        function openSearchwin() {
+        }
+
+        //testing disable button
+
+        //各字段的field没有修改
+        var dgdata = [{
+            ck: "",
+            cInvCode: "a",
+            cInvName: "b",
+            cInvStd: "c",
+            cComUnitName: "d",
+            iTVPCost: "1",
+            iTVQuantity: "1",
+            iTVPPrice: "1",
+            iTvChkQuantity: "1",
+            autoID: "",
+            ID: ""
+        }];
+        var tbldata = { rows: [dgdata], total: 1 };
+        
+        $(document).ready(function () {
+            $('#dg').datagrid({
+                data: dgdata,
+                nowrap: false,
+                SelectOnCheck: true,
+                onClickRow: function () { return true; },
+                toolbar: ['-', {
+                    text: '指定包',
+                    iconCls: 'icon-search',
+                    id: 'SelPag',
+                    handler: function () {
+
+                    }
+                },
+             '-', {
+
+                 text: '添加',
+                 disabled:true,
+                 id: 'addRec',
+                 iconCls: 'icon-add'
+             },
+             '-', {
+
+                 text: '删除',
+                 id: 'delRec',
+                 iconCls: 'icon-remove'
+             },
+             '-', {
+                 text: '保存',
+                 id: 'saveRec',
+                 iconCls: 'icon-save'
+             },
+             '-', {
+                 text: '取消',
+                 id: 'reject',
+                 iconCls: 'icon-undo'
+             },
+             '-', {
+                 text: '刷新',
+                 id: 'reload',
+                 iconCls: 'icon-reload'
+             },
+             '-', ],
+                columns: [[{
+                    field: 'ck',
+                    checkbox: true
+                },
+                {
+                    field: 'cInvCode',
+                    title: '存货编码',
+                    width: 120,
+                    editor: {
+                        type: 'combobox',
+                        options: {
+                            labelPosition: 'top',
+                            url: './../../BaseFun/GetUFDataAutoComplete.ashx?cTblName=inventory',
+                            method: 'get',
+                            prompt: '输入存货编码', valueField: 'cInvCode', textField: 'cInvCode',
+                            hasDownArrow: false,
+                            iconWidth: 22,
+                            icons: [{
+                                iconCls: 'icon-search',
+                                handler: function (e) {
+                                    SelInv();
+                                }
+                            }],
+                            onSelect: function (record) {
+                                var _url = './../../BaseFun/GetUFBaseData.ashx?cType=BD&cTblName=inventory';
+                                _url += "&cCode=" + record.cInvCode
+                                ReaInvCodeSelInfo(_url)
+                            },
+                        },
+                    }
+                },
+                {
+                    field: 'cInvName',
+                    title: '存货名称',
+                    width: 100,
+                },
+                {
+                    field: 'cInvStd',
+                    title: '规格型号',
+                    width: 100,
+                },
+                {
+                    field: 'cComUnitName',
+                    title: '主计量单位',
+                    width: 100,
+                },
+                {
+                    field: 'iTVPCost',
+                    title: '批复数量',
+                    width: 100,
+                    align: 'right', halign: 'center',
+                    editor: { type: 'numberbox', options: { precision: 2 } },
+                },
+                {
+                    field: 'iTVQuantity',
+                    title: '数量',
+                    width: 100,
+                    align: 'right', halign: 'center',
+                    editor: { type: 'numberbox', options: { precision: 2 } },
+                },
+                {
+                    field: 'iTVPPrice',
+                    title: '单价',
+                    width: 100,
+                    align: 'right', halign: 'center',
+                    editor: { type: 'numberbox', options: { precision: 2, prefix: '￥' } },
+                },
+                {
+                    field: 'iTvChkQuantity',
+                    title: '金额',
+                    width: 100,
+                    align: 'right', halign: 'center',
+                    editor: { type: 'numberbox', options: { precision: 2, prefix: '￥' } },
+                },
+                {
+                    field: 'autoID',
+                    title: 'ID',
+                    width: 100
+                }
+
+                ]],
+                onLoadError: function (e) {
+                    var cer = e;
+                },
+                onLoadSuccess: function (e) {
+                    var cer = e;
+                }
+            })
+        });
+        //激活或禁用linkbutton按钮，其中，mtoolbar是容纳这些按钮的容器的class，仅对容器内的按钮进行控制
+        function disablebutton(selector,b) {
+            $(selector + ' .easyui-linkbutton').each(function () {
+                if (b) {
+                    $(this).addClass('l-btn-disabled');
+                } else {
+                    $(this).removeClass('l-btn-disabled');
+                }
+            });
+        }
+        disablebutton('.mtoolbar', false); //调用方法
+
+        //激活或禁用datagrid toolbar按钮，参数selector是table的id选择器（比如'#dg'），b：true表示禁用，false表示激活
+        function disablegridtoolbar(selector, b) {
+            $('.datagrid-toolbar .l-btn', $(selector).datagrid('getPanel')).each(function () {
+                if (b) {
+                    $(this).addClass('l-btn-disabled');
+                } else {
+                    $(this).removeClass('l-btn-disabled');
+                }
+            });
+        }
+        $('#dg').ready(function () {
+            disablegridtoolbar('#dg', false);
+        });
+
+
+        //队列执行控制代码（同步模式）
+        function executeinorder() {
+            var dtd = $.Deferred();
+            //在check2里模拟了校验失败(rst=1)
+            $.when(check1(dtd)).then(
+                function () { alert('第一步校验成功！启动第二步检验'); return check2($.Deferred()); },
+                function () { alert('第一步校验失败！'); return dtd; })
+            .then(
+                function () { alert('第二步校验成功！启动第三步检验'); return check3($.Deferred()); },
+                function () { alert('第二步校验失败！'); return dtd; })
+            .then(
+                function () { alert('第三步校验成功！所有校验步骤全部完成！'); return dtd; },
+                function () { alert('第三步校验失败！所有校验步骤全部完成！'); return dtd; });
+        }
+
+        function check1(dtd) {
+            var tasks = function (dtd) {
+                alert("这是第一步校验");
+                var rst = 0;  //0:通过，1：不通过
+
+                //这里放同步校验代码，返回rst的值
+
+
+                if (rst == 0) {
+                    dtd.resolve();
+                } else {
+                    dtd.reject();
+                }
+                return dtd;
+            };
+            return tasks(dtd); // 返回promise对象
+        }
+        function check2(dtd) {
+            var tasks = function (dtd) {
+                alert("这是第二步校验");
+                var rst = 1;  //0:通过，1：不通过
+
+
+                //这里放同步校验代码，返回rst的值
+
+                if (rst == 0) {
+                    dtd.resolve();
+                } else {
+                    dtd.reject();
+                }
+                return dtd;
+            };
+            return tasks(dtd); // 返回promise对象
+        }
+        function check3(dtd) {
+            var tasks = function (dtd) {
+                alert("这是第三步校验");
+                var rst = 0;  //0:通过，1：不通过
+
+                //这里放同步校验代码，返回rst的值
+
+
+                if (rst == 0) {
+                    dtd.resolve();
+                } else {
+                    dtd.reject();
+                }
+                return dtd;
+            };
+            return tasks(dtd); // 返回promise对象
+        }
+
+
+        //function get() {
+        //    $.ajax({
+        //        url: 'test.ashx?checkname=name1'
+        //    }).then(function () {
+        //        return $.ajax({ url: 'test.ashx?checkname=name2' });
+        //    }).then(function () {
+        //        return $.ajax({ url: 'test.ashx?checkname=name3' });
+        //    }).then(function () {
+        //        return $.ajax({ url: 'test.ashx?checkname=name4' });
+        //    }).then(function () {
+        //        //TODO here
+        //    });
+        //}
+        ////list数组存放要校验的名称
+        //for (i = 0; i < list.length; i++) {
+        //    get()
+        //}
+
+        
+
+    </script>
+
+</head>
+<body>
+    <input type="button" style="display:none;" value="生成页面" onclick="createpage()"/>
+    <input type="button" value ="Disable Button" onclick="disablebutton('.mtoolbar', true)" />
+    <input type="button" value ="Enable Button" onclick="disablebutton('.mtoolbar', false)" />
+    <input type="button" value ="Disable Grid Button" onclick="disablegridtoolbar('#dg', true)" />
+    <input type="button" value ="Enable Grid Button" onclick="disablegridtoolbar('#dg', false)" />
+    <input type="button" value ="顺序执行" onclick="executeinorder()" />
+    <div class="pagesection" style="display:table-cell">
+        
+    </div>
+    <div>
+        <ul id="menu_nr"></ul>
+    </div>
+    <div class="easyui-panel mtoolbar" style="padding:2px; margin-top:1px">
+        <a class="easyui-linkbutton" data-options="iconCls:'icon-add'" id="btnAdd" onclick="gAddRec()">添加</a>
+        <a class="easyui-linkbutton" data-options="iconCls:'icon-cancel'"id="btnDel" onclick="SetTextTypeDisable()">删除</a>
+        <a class="easyui-linkbutton" data-options="iconCls:'icon-search'" id="Btnsearch">审核</a>
+        <a class="easyui-linkbutton" data-options="iconCls:'icon-clear'" id="Btnclear">弃审</a>
+        <a class="easyui-linkbutton" data-options="iconCls:'icon-print'" id="Btnprint">打印</a>
+    </div>
+    <table id="dg" style="height:200px;" tablename="MES_ST_AppTransVouchs" fieldlayout="grid" includedeletion="true" parenttable="MES_ST_AppTransVouch" ></table>
+
+</body>
+</html>

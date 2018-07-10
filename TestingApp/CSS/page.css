@@ -1,0 +1,24 @@
+﻿body {
+}
+.grid {
+    display:grid;
+    grid-template-columns:1fr;
+}
+.gridcolumn {
+    display:inline-block;
+    width:303px;
+}
+.gridcolumn span.textbox {
+width:150px;
+}
+.gridrow {
+    display:grid;
+}
+table.master {
+    width:80%;
+    height:50%;
+}
+table.slave {
+    width:80%;
+    height:30%;
+}

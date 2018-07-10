@@ -1,0 +1,335 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="CSS/page.css" />
+    <link rel="stylesheet" type="text/css" href="jquery-easyui-1.5.3/themes/default/easyui.css" />
+    <link rel="stylesheet" type="text/css" href="jquery-easyui-1.5.3/themes/color.css"/>
+    <link rel="stylesheet" type="text/css" href="jquery-easyui-1.5.3/themes/icon.css"/>
+    <script src="jquery-easyui-1.5.3/jquery.min.js" type="text/javascript"></script>
+    <script src="jquery-easyui-1.5.3/jquery.easyui.min.js" type="text/javascript"></script>
+
+    <script type="text/javascript">
+        //var container = $('.pagesection');
+        function createpage() {
+            $.ajax({
+                type: "POST",
+                url: 'Handler/WebHandler.ashx',
+                data: {
+                    PageName:'test1'
+                },
+                //async: false,
+                //dataType: 'text',
+                //contentType: 'application/json; charset=utf-8',
+                error: function (err) {
+                    alert(err.statusText);
+                },
+                success: function (data) {
+
+                    var container = $('.pagesection');
+                    //container.attr('href', surl);
+                    //var content = $("<div style='width:auto;height:auto;'>" + data + "</div>");
+                    var ohtml = $.parseHTML(data);
+                    container.html('').append(ohtml);
+                    $.parser.parse(container);
+                    //SearchSuggest();
+                    //allCheck('table tbody tr input', 'table thead tr input');
+                    setTimeout(function () { }, 1 * 1000);//延迟1000毫秒
+                }
+            });
+        }
+
+        function selectrow(tblcls, index, row) {
+            var currow = $('.' + tblcls).attr('currow');
+            if (currow != undefined) {
+                saverow(tblcls, currow.rowIndex);
+            }
+            editrow(tblcls, index);
+        }
+
+        function getRowIndex(target){
+            		//var tr = $(target).closest('tr.datagrid-row');
+            //return parseInt(tr.attr('datagrid-row-index'));
+            var crow = $('.' + tblcls).datagrid('getSelected');
+            return crow.rowIndex;
+            	}
+        function editrow(tblcls, index) {
+            $('.' + tblcls).datagrid('beginEdit', index);
+            $('.' + tblcls).attr('currow', index);
+        }
+        function deleterow(tblcls, index) {
+            		$.messager.confirm('Confirm','Are you sure?',function(r){
+                			if (r){
+                			    $('.' + tblcls).datagrid('deleteRow', index);
+                    			}
+                		});
+            	}
+        function saverow(tblcls, index) {
+            $('.' + tblcls).datagrid('endEdit', index);
+            	}
+        function cancelrow(tblcls, index) {
+            $('.' + tblcls).datagrid('cancelEdit', index);
+        }
+
+        function savedata(savetables) {
+            //tablenames是按父级->子级排列的表名字符串（逗号分隔），表示要在同一个SQL事务中保存数据的表
+            var artbl = savetables.split(',');
+            //页面数据元素属性：table布局对象：tablename、fieldlayout、parenttable【可选】；字段元素对象：field、primarykey【可选】
+            var savedata = [];
+            for (var i = 0; i < artbl.length; i++) {
+                var tabledata = { tablename: '', fieldlayout: '', parenttable: '', primaryfield: {}, data: {} };
+                tabledata.tablename = artbl[i];
+                var otbl = $("table[tablename='" + artbl[i] + "']");
+                var fldlayout = $(otbl).attr('fieldlayout');
+                tabledata.fieldlayout = fldlayout;
+                //获取本表的父级表主键关联表
+                var parenttbl = $(otbl).attr('parenttable');
+                tabledata.parenttable = (parenttbl == undefined ? "" : parenttbl);
+                //获取主键值
+                var primaryFields = {};
+                if (parenttbl != undefined) {
+                    var ptbl = $('table[tablename="' + parenttbl + '"]');
+                    var parentlayout = ptbl.attr('fieldlayout');
+                    //确定父级关联外键字段数据元素的所在容器
+                    var pkcontainer = null, pk = {};
+                    if (parentlayout.toLowerCase() == "grid") {
+                        //父级数据在表格行tablerow，column：fieldtype='primarykey'
+                        pkcontainer = ptbl.datagrid('getSelected');
+                        for (var column in pkcontainer) {
+                            if (column.primarykey != undefined) pk[column.field] = pkcontainer[column.field];
+                        }
+                    } else {
+                        //父级数据在页面input-hidden, fieldtype='primarykey'
+                        pkcontainer = ptbl;
+                        $("[field][fieldtype='primarykey']", pkcontainer).each(function () {
+                            pk[$(this).attr('field')] = controlVal(this);
+                        });
+                    }
+                    primaryFields = pk;
+                }
+                tabledata.primaryfield = primaryFields;
+                //获取本表数据集合
+                var tbldata = null;
+                if (fldlayout.toLowerCase() == "grid") {
+                    tbldata = esuDatatoQinData($(this).datagrid('getData'));
+                } else {
+                    pkcontainer = ptbl;
+                    var tbldata = {};
+                    $("[field]", pkcontainer).each(function () {
+                        var fld = $(this).attr('field');
+                        tbldata[fld] = controlVal(this);
+                    });
+                }
+                tabledata.data = tbldata;
+
+                savedata.push(tabledata);
+            }
+            //执行保存
+            $.post('../../Handler/WarehouseHandler.ashx?JobType=Save&JobName=TablesData', JSON.stringify(savedata), function (rst) {
+                var suc = rst.substr(0, rst.indexOf('|'));
+                var data = rst.substr(rst.indexOf('|') + 1);
+                if (suc == "1") {
+                    alert(data);
+                } else {
+                    if (data != "") {
+                        //有返回数据
+                        var gridjsn = $.GridData(eval('(' + data + ')'));
+                        var appData = gridjsn.data;  //影响结果返回
+                        var cols = gridjsn.columns;
+                        if (cols['ErrMsg'] == undefined || cols['ErrMsg'] == null) {
+                            //执行成功
+                            jq.datagrid('reload');
+                        } else {
+                            //执行失败
+                            alert(appData[0].ErrMsg);
+                        }
+                    }
+                }
+            });
+
+        }
+        //支持easyui控件和普通html控件
+        function controlVal(selector, v) {
+            var origv = v;
+            var o = $(selector);
+            var at = o.attr('class');
+            var command = (v == undefined ? 'getValue' : 'setValue');
+            try{
+                if (at != undefined && at.indexOf('easyui-') > -1) {
+                    var pat = /(\s*easyui-)(\S+)(\s*)/g;
+                    var reg = new RegExp(pat);
+                    var ctltype = reg.exec(at, "$2")[2];
+                    var options;
+                    switch (ctltype.toLowerCase()) {
+                        case "textbox":
+                            options = o.textbox('options');
+                            if (v != undefined && v != null) {
+                                o.textbox(command, v);
+                            } else {
+                                v = o.textbox(command);
+                            } break;
+                        case "combo":
+                            options = o.combo('options');
+                            if (v != undefined && v != null) {
+                                o.combo(command, v);
+                            } else {
+                                v = o.combo(command);
+                            } break;
+                        case "combobox":
+                            options = o.combobox('options');
+                            if (v != undefined && v != null) {
+                                o.combobox(command, v);
+                            } else {
+                                v = o.combobox(command);
+                            } break;
+                        case "combotree":
+                            options = o.combotree('options');
+                            if (v != undefined && v != null) {
+                                o.combotree(command, v);
+                            } else {
+                                v = o.combotree(command);
+                            } break;
+                        case "combogrid":
+                            options = o.combogrid('options');
+                            if (v != undefined && v != null) {
+                                o.combogrid(command, v);
+                            } else {
+                                v = o.combogrid(command);
+                            } break;
+                        case "combotreegrid":
+                            options = o.combotreegrid('options');
+                            if (v != undefined && v != null) {
+                                o.combotreegrid(command, v);
+                            } else {
+                                v = o.combotreegrid(command);
+                            } break;
+                        case "numberbox":
+                            options = o.numberbox('options');
+                            v = v.replace(/,/g, '');
+                            if (v != undefined && v != null) {
+                                o.numberbox(command, v);
+                            } else {
+                                v = o.numberbox(command);
+                            } break;
+                        case "datebox":
+                            options = o.datebox('options');
+                            if (v != undefined && v != null) {
+                                o.datebox(command, v);
+                            } else {
+                                v = o.datebox(command);
+                            } break;
+                        case "datetimebox":
+                            options = o.datetimebox('options');
+                            if (v != undefined && v != null) {
+                                o.datetimebox(command, v);
+                            } else {
+                                v = o.datetimebox(command);
+                            } break;
+                        case "validatebox":
+                            options = o.validatebox('options');
+                            if (v != undefined && v != null) {
+                                o.validatebox(command, v);
+                            } else {
+                                v = o.validatebox(command);
+                            }
+                            break;
+                        case "numberspinner":
+                            options = o.numberspinner('options');
+                            if (v != undefined && v != null) {
+                                o.numberspinner(command, v);
+                            } else {
+                                v = o.numberspinner(command);
+                            }
+                            break;
+                        case "timespinner":
+                            options = o.timespinner('options');
+                            if (v != undefined && v != null) {
+                                o.timespinner(command, v);
+                            } else {
+                                v = o.timespinner(command);
+                            }
+                            break;
+                        case "slider":
+                            options = o.slider('options');
+                            if (v != undefined && v != null) {
+                                o.slider(command, v);
+                            } else {
+                                v = o.slider(command);
+                            }
+                            break;
+                        default:
+                            if (v != undefined && v != null) {
+                                o.val(v);
+                            } else {
+                                v = o.val();
+                            }
+                            break;
+                    }
+                } else {
+                    var tag = o[0].tagName;
+                    switch (tag.toLowerCase()) {
+                        case "input":
+                            switch (o.attr('type').toLowerCase()) {
+                                case "checkbox":
+                                    if (v == undefined) {
+                                        v = o.attr("checked") ? true : false;
+                                    } else {
+                                        o.attr("checked", (v == 1 || v == '1' || v == true ? true : false));
+                                    }
+                                    break;
+                                case "radio":
+                                    if (v == undefined) {
+                                        var name = o.attr('name');
+                                        v = o.parent().find("input[name='" + name + "'][checked]").val();
+                                    } else {
+                                        var name = o.attr('name');
+                                        o.parent().find("input[name='" + name + "'][value='" + v + "']").attr("checked", true);
+                                    }
+                                default:
+                                    if (v == undefined) {
+                                        v = o.val();
+                                    } else {
+                                        o.val(v);
+                                    }
+                                    break;
+                            }
+                            break;
+                        case "textarea":
+                            if (v == undefined) {
+                                v = o.html();
+                            } else {
+                                o.html(v);
+                            }
+                        default:
+                            if (v == undefined) {
+                                v = o.text();
+                            } else {
+                                o.text(v);
+                            }
+                            break;
+                    }
+                }
+                return (origv == undefined ? v : true);
+            }
+            catch(e){
+                return (origv == undefined ? "" : false);
+            }
+        }
+
+        function openSearchwin() {
+        }
+    </script>
+</head>
+<body>
+    <input type="button" value="生成页面" onclick="createpage()"/>
+    <div class="pagesection" style="display:table-cell">
+        
+</div>
+    <div>
+        <ul id="menu_nr"></ul>
+    </div>
+
+</body>
+</html>
